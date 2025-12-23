@@ -622,7 +622,8 @@
         const SUPABASE_URL = 'https://wmrcvhlznnplbabagbsn.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndtcmN2aGx6bm5wbGJhYmFnYnNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTUzNTgsImV4cCI6MjA4MjA5MTM1OH0.Zkv511PVfulCLwJ5sWeoXkhQ0A-9Vo2x9VBm-zlK6JU';
 
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const { createClient } = window.supabase;
+        const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
         // Default items
         const DEFAULT_ITEMS = [
@@ -653,7 +654,7 @@
 
             try {
                 // Check if checklist exists for today
-                let { data: checklist, error } = await supabase
+                let { data: checklist, error } = await db
                     .from('checklists')
                     .select('id, date')
                     .eq('date', today)
@@ -667,7 +668,7 @@
                 }
 
                 // Load items for this checklist
-                const { data: items, error: itemsError } = await supabase
+                const { data: items, error: itemsError } = await db
                     .from('items')
                     .select('*')
                     .eq('checklist_id', checklist.id)
@@ -708,7 +709,7 @@
         // Create checklist for a specific date
         async function createChecklistForDate(date) {
             // Create the checklist
-            const { data: checklist, error: checklistError } = await supabase
+            const { data: checklist, error: checklistError } = await db
                 .from('checklists')
                 .insert({ date: date })
                 .select()
@@ -729,7 +730,7 @@
                 }
             }
 
-            const { error: itemsError } = await supabase
+            const { error: itemsError } = await db
                 .from('items')
                 .insert(itemsToInsert);
 
@@ -816,7 +817,7 @@
                 const newChecked = !item.checked;
 
                 // Update in Supabase
-                const { error } = await supabase
+                const { error } = await db
                     .from('items')
                     .update({ checked: newChecked })
                     .eq('id', itemId);
@@ -840,7 +841,7 @@
             if (!name) return;
 
             try {
-                const { data: newItem, error } = await supabase
+                const { data: newItem, error } = await db
                     .from('items')
                     .insert({
                         checklist_id: currentChecklist.id,
@@ -873,7 +874,7 @@
         // Delete item
         async function deleteItem(itemId) {
             try {
-                const { error } = await supabase
+                const { error } = await db
                     .from('items')
                     .delete()
                     .eq('id', itemId);
@@ -903,7 +904,7 @@
 
             try {
                 // Delete existing checklist for today if exists
-                const { data: existing } = await supabase
+                const { data: existing } = await db
                     .from('checklists')
                     .select('id')
                     .eq('date', today)
@@ -911,8 +912,8 @@
 
                 if (existing) {
                     // Delete items first (cascade should handle this, but just in case)
-                    await supabase.from('items').delete().eq('checklist_id', existing.id);
-                    await supabase.from('checklists').delete().eq('id', existing.id);
+                    await db.from('items').delete().eq('checklist_id', existing.id);
+                    await db.from('checklists').delete().eq('id', existing.id);
                 }
 
                 // Create new checklist
@@ -929,7 +930,7 @@
             const historyList = document.getElementById('historyList');
 
             try {
-                const { data: checklists, error } = await supabase
+                const { data: checklists, error } = await db
                     .from('checklists')
                     .select('id, date')
                     .order('date', { ascending: false });
@@ -941,7 +942,7 @@
                 } else {
                     // Get item counts for each checklist
                     const historyHtml = await Promise.all(checklists.map(async (checklist) => {
-                        const { data: items } = await supabase
+                        const { data: items } = await db
                             .from('items')
                             .select('checked')
                             .eq('checklist_id', checklist.id);
@@ -980,7 +981,7 @@
         // Load a historical checklist
         async function loadHistoricalChecklist(date) {
             try {
-                const { data: checklist, error } = await supabase
+                const { data: checklist, error } = await db
                     .from('checklists')
                     .select('id, date')
                     .eq('date', date)
@@ -988,7 +989,7 @@
 
                 if (error) throw error;
 
-                const { data: items, error: itemsError } = await supabase
+                const { data: items, error: itemsError } = await db
                     .from('items')
                     .select('*')
                     .eq('checklist_id', checklist.id)
