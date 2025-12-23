@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Groceries">
+    <meta name="theme-color" content="#0a0a0a">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <title>Grocery Checklist</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #0a0a0a;
+            min-height: 100vh;
+            padding: 12px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Retro grid background */
+        .retro-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            overflow: hidden;
+            background: linear-gradient(180deg, #0a0a0a 0%, #1a0a2e 100%);
+        }
+
+        /* Animated grid floor */
+        .retro-bg::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: -50%;
+            width: 200%;
+            height: 60%;
+            background:
+                linear-gradient(90deg, rgba(255, 0, 128, 0.3) 1px, transparent 1px),
+                linear-gradient(0deg, rgba(255, 0, 128, 0.3) 1px, transparent 1px);
+            background-size: 60px 40px;
+            transform: perspective(500px) rotateX(60deg);
+            animation: gridMove 20s linear infinite;
+        }
+
+        /* Sun/moon glow */
+        .retro-bg::after {
+            content: '';
+            position: absolute;
+            bottom: 30%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, #ff6b00 0%, #ff0080 40%, transparent 70%);
+            border-radius: 50%;
+            filter: blur(2px);
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        /* Horizontal lines through sun */
+        .sun-lines {
+            position: fixed;
+            bottom: calc(30% + 20px);
+            left: 50%;
+            transform: translateX(-50%);
+            width: 180px;
+            height: 160px;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .sun-lines::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 8px,
+                #0a0a0a 8px,
+                #0a0a0a 16px
+            );
+        }
+
+        /* Mountain silhouettes */
+        .mountains {
+            position: fixed;
+            bottom: 25%;
+            left: 0;
+            width: 100%;
+            height: 150px;
+            z-index: 0;
+        }
+
+        .mountains::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                linear-gradient(135deg, transparent 40%, #1a0a2e 40%, #1a0a2e 41%, transparent 41%),
+                linear-gradient(225deg, transparent 40%, #1a0a2e 40%, #1a0a2e 41%, transparent 41%),
+                linear-gradient(125deg, transparent 35%, #0f0520 35%, #0f0520 36%, transparent 36%),
+                linear-gradient(235deg, transparent 45%, #0f0520 45%, #0f0520 46%, transparent 46%);
+            background-size: 200px 100%, 200px 100%, 300px 100%, 250px 100%;
+            background-position: 0 100%, 100px 100%, 150px 100%, 50px 100%;
+            background-repeat: repeat-x;
+        }
+
+        /* Stars */
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 50%;
+            z-index: 0;
+            background-image:
+                radial-gradient(2px 2px at 20px 30px, white, transparent),
+                radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent),
+                radial-gradient(1px 1px at 90px 40px, white, transparent),
+                radial-gradient(2px 2px at 130px 80px, rgba(255,255,255,0.6), transparent),
+                radial-gradient(1px 1px at 160px 20px, white, transparent),
+                radial-gradient(2px 2px at 200px 60px, rgba(255,255,255,0.9), transparent),
+                radial-gradient(1px 1px at 250px 10px, white, transparent),
+                radial-gradient(2px 2px at 300px 50px, rgba(255,255,255,0.7), transparent),
+                radial-gradient(1px 1px at 350px 35px, white, transparent),
+                radial-gradient(2px 2px at 400px 75px, rgba(255,255,255,0.8), transparent);
+            background-size: 400px 100px;
+            animation: twinkle 5s ease-in-out infinite alternate;
+        }
+
+        @keyframes gridMove {
+            0% { background-position: 0 0; }
+            100% { background-position: 0 400px; }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.9; transform: translateX(-50%) scale(1); }
+            50% { opacity: 1; transform: translateX(-50%) scale(1.05); }
+        }
+
+        @keyframes twinkle {
+            0% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        header h1 {
+            font-size: 1.6rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            letter-spacing: 0.5px;
+        }
+
+        .date-display {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            font-weight: 300;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 12px;
+        }
+
+        .btn {
+            padding: 8px 18px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-primary {
+            background: rgba(233, 69, 96, 0.9);
+            color: white;
+            box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(233, 69, 96, 0.5);
+            background: rgba(233, 69, 96, 1);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .category {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 16px;
+            margin-bottom: 14px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .category-header {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 12px 16px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.95);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            transition: background 0.2s ease;
+            user-select: none;
+        }
+
+        .category-header:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .category-header-left {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .collapse-icon {
+            font-size: 0.7rem;
+            transition: transform 0.3s ease;
+            opacity: 0.6;
+        }
+
+        .category.collapsed .collapse-icon {
+            transform: rotate(-90deg);
+        }
+
+        .category-count {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-weight: 400;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .category-body {
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .category.collapsed .category-body {
+            max-height: 0;
+        }
+
+        .items-list {
+            padding: 6px 0;
+        }
+
+        .item {
+            display: flex;
+            align-items: center;
+            padding: 8px 16px;
+            transition: all 0.2s ease;
+        }
+
+        .item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .item input[type="checkbox"] {
+            display: none;
+        }
+
+        .item label {
+            display: flex;
+            align-items: center;
+            flex: 1;
+            cursor: pointer;
+        }
+
+        .checkmark {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 6px;
+            margin-right: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .item input[type="checkbox"]:checked + label .checkmark {
+            background: linear-gradient(135deg, #e94560, #ff6b6b);
+            border-color: transparent;
+            box-shadow: 0 2px 10px rgba(233, 69, 96, 0.4);
+        }
+
+        .item input[type="checkbox"]:checked + label .checkmark::after {
+            content: "✓";
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .item input[type="checkbox"]:checked + label .item-name {
+            text-decoration: line-through;
+            color: rgba(255, 255, 255, 0.35);
+        }
+
+        .item-name {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.85);
+            transition: all 0.3s ease;
+        }
+
+        .delete-btn {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            padding: 4px;
+            font-size: 1rem;
+            opacity: 0;
+            transition: all 0.2s ease;
+            border-radius: 4px;
+        }
+
+        .item:hover .delete-btn {
+            opacity: 1;
+        }
+
+        .delete-btn:hover {
+            color: #e94560;
+            background: rgba(233, 69, 96, 0.1);
+        }
+
+        .add-item-form {
+            display: flex;
+            gap: 8px;
+            padding: 10px 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .add-item-form input {
+            flex: 1;
+            padding: 8px 14px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            font-size: 0.8rem;
+            outline: none;
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            transition: all 0.2s ease;
+        }
+
+        .add-item-form input::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        .add-item-form input:focus {
+            border-color: rgba(233, 69, 96, 0.5);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 0 3px rgba(233, 69, 96, 0.1);
+        }
+
+        .add-item-form button {
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #e94560, #ff6b6b);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .add-item-form button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4);
+        }
+
+        /* History Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: rgba(30, 30, 50, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            max-width: 450px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            padding: 18px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-weight: 500;
+            color: white;
+            font-size: 1rem;
+        }
+
+        .close-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            color: rgba(255, 255, 255, 0.6);
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .close-btn:hover {
+            background: rgba(233, 69, 96, 0.2);
+            color: #e94560;
+        }
+
+        .history-list {
+            padding: 8px 0;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 20px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .history-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .history-date {
+            font-weight: 500;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 0.85rem;
+        }
+
+        .history-progress {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.8rem;
+        }
+
+        .progress-bar {
+            width: 80px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #e94560, #ff6b6b);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+
+            header h1 {
+                font-size: 1.4rem;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Retro background elements -->
+    <div class="retro-bg"></div>
+    <div class="stars"></div>
+    <div class="mountains"></div>
+    <div class="sun-lines"></div>
+
+    <div class="container">
+        <header>
+            <h1>Grocery Checklist</h1>
+            <div class="date-display" id="dateDisplay"></div>
+            <div class="actions">
+                <button class="btn btn-primary" onclick="createNewChecklist()">New Day's List</button>
+                <button class="btn btn-secondary" onclick="showHistory()">View History</button>
+            </div>
+        </header>
+
+        <main id="checklistContainer">
+            <div class="loading">Loading...</div>
+        </main>
+    </div>
+
+    <!-- History Modal -->
+    <div class="modal" id="historyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Checklist History</h2>
+                <button class="close-btn" onclick="closeHistory()">&times;</button>
+            </div>
+            <div class="history-list" id="historyList">
+                <!-- History items will be rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://wmrcvhlznnplbabagbsn.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndtcmN2aGx6bm5wbGJhYmFnYnNuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY1MTUzNTgsImV4cCI6MjA4MjA5MTM1OH0.Zkv511PVfulCLwJ5sWeoXkhQ0A-9Vo2x9VBm-zlK6JU';
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // Default items
+        const DEFAULT_ITEMS = [
+            { category: "Fruits & Vegetables", items: ["Bananas", "Apples", "Pineapple", "Oranges", "Lemons", "Grapes", "Strawberries", "Tomatoes", "Onions", "Potatoes", "Garlic", "Ginger", "Carrots", "Broccoli", "Spinach", "Lettuce", "Bell peppers", "Cucumbers", "Mushrooms"] },
+            { category: "Kitchen Essentials", items: ["Bread", "Milk", "Eggs", "Butter", "Cooking oil", "Pepper", "Salt", "Dish towels", "All-purpose cleaner", "Ziploc bags", "Plastic wrap", "Aluminum foil", "Trash bags", "Paper towels", "Sponges", "Dish soap"] },
+            { category: "Bathroom Essentials", items: ["Toilet paper", "Hand soap", "Shampoo", "Conditioner", "Body wash", "Toothpaste", "Toothbrush", "Mouthwash", "Floss", "Deodorant", "Razors", "Shaving cream", "Cotton swabs", "Tissues"] },
+            { category: "Indian Grocery Items", items: ["Toor/arhar dal (split pigeon peas)", "Chana dal (split Bengal gram)", "Masoor dal (split red lentils)", "Moong dal (split yellow mung beans)", "Urad dal", "Kala chana (black chickpeas)", "Rajma (kidney beans)", "Chana (chickpeas)", "Mint", "Coriander", "Cilantro"] }
+        ];
+
+        let currentChecklist = null;
+        let collapsedCategories = new Set();
+
+        // Get today's date in ISO format
+        function getTodayDate() {
+            return new Date().toISOString().split('T')[0];
+        }
+
+        // Format date for display
+        function formatDate(dateStr) {
+            const date = new Date(dateStr + 'T00:00:00');
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            return date.toLocaleDateString('en-US', options);
+        }
+
+        // Load today's checklist
+        async function loadChecklist() {
+            const today = getTodayDate();
+
+            try {
+                // Check if checklist exists for today
+                let { data: checklist, error } = await supabase
+                    .from('checklists')
+                    .select('id, date')
+                    .eq('date', today)
+                    .single();
+
+                if (error && error.code === 'PGRST116') {
+                    // No checklist for today, create one
+                    checklist = await createChecklistForDate(today);
+                } else if (error) {
+                    throw error;
+                }
+
+                // Load items for this checklist
+                const { data: items, error: itemsError } = await supabase
+                    .from('items')
+                    .select('*')
+                    .eq('checklist_id', checklist.id)
+                    .order('id');
+
+                if (itemsError) throw itemsError;
+
+                // Group items by category
+                const categories = [];
+                const categoryMap = {};
+
+                for (const item of items) {
+                    if (!categoryMap[item.category]) {
+                        categoryMap[item.category] = [];
+                        categories.push({ name: item.category, items: categoryMap[item.category] });
+                    }
+                    categoryMap[item.category].push({
+                        id: item.id,
+                        name: item.name,
+                        checked: item.checked
+                    });
+                }
+
+                currentChecklist = {
+                    id: checklist.id,
+                    date: checklist.date,
+                    categories: categories
+                };
+
+                renderChecklist();
+            } catch (error) {
+                console.error('Error loading checklist:', error);
+                document.getElementById('checklistContainer').innerHTML =
+                    '<div class="empty-state">Error loading checklist. Please refresh.</div>';
+            }
+        }
+
+        // Create checklist for a specific date
+        async function createChecklistForDate(date) {
+            // Create the checklist
+            const { data: checklist, error: checklistError } = await supabase
+                .from('checklists')
+                .insert({ date: date })
+                .select()
+                .single();
+
+            if (checklistError) throw checklistError;
+
+            // Add default items
+            const itemsToInsert = [];
+            for (const category of DEFAULT_ITEMS) {
+                for (const itemName of category.items) {
+                    itemsToInsert.push({
+                        checklist_id: checklist.id,
+                        category: category.category,
+                        name: itemName,
+                        checked: false
+                    });
+                }
+            }
+
+            const { error: itemsError } = await supabase
+                .from('items')
+                .insert(itemsToInsert);
+
+            if (itemsError) throw itemsError;
+
+            return checklist;
+        }
+
+        // Render the checklist
+        function renderChecklist() {
+            const container = document.getElementById('checklistContainer');
+            const dateDisplay = document.getElementById('dateDisplay');
+
+            dateDisplay.textContent = formatDate(currentChecklist.date);
+
+            if (currentChecklist.categories.length === 0) {
+                container.innerHTML = '<div class="empty-state">No items yet. Click "New Day\'s List" to start!</div>';
+                return;
+            }
+
+            let html = '';
+            for (const category of currentChecklist.categories) {
+                const checkedCount = category.items.filter(item => item.checked).length;
+                const isCollapsed = collapsedCategories.has(category.name);
+                html += `
+                    <div class="category ${isCollapsed ? 'collapsed' : ''}" data-category="${category.name}">
+                        <div class="category-header" onclick="toggleCategory('${category.name}')">
+                            <div class="category-header-left">
+                                <span class="collapse-icon">▼</span>
+                                <span>${category.name}</span>
+                            </div>
+                            <span class="category-count">${checkedCount}/${category.items.length}</span>
+                        </div>
+                        <div class="category-body">
+                            <div class="items-list">
+                                ${category.items.map(item => `
+                                    <div class="item" data-id="${item.id}">
+                                        <input type="checkbox" id="item-${item.id}" ${item.checked ? 'checked' : ''} onchange="toggleItem(${item.id})">
+                                        <label for="item-${item.id}">
+                                            <span class="checkmark"></span>
+                                            <span class="item-name">${item.name}</span>
+                                        </label>
+                                        <button class="delete-btn" onclick="deleteItem(${item.id})">&times;</button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <form class="add-item-form" onsubmit="addItem(event, '${category.name}')">
+                                <input type="text" placeholder="Add custom item..." required>
+                                <button type="submit">Add</button>
+                            </form>
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = html;
+        }
+
+        // Toggle category collapse state
+        function toggleCategory(categoryName) {
+            if (collapsedCategories.has(categoryName)) {
+                collapsedCategories.delete(categoryName);
+            } else {
+                collapsedCategories.add(categoryName);
+            }
+            const categoryEl = document.querySelector(`.category[data-category="${categoryName}"]`);
+            if (categoryEl) {
+                categoryEl.classList.toggle('collapsed');
+            }
+        }
+
+        // Toggle item checked status
+        async function toggleItem(itemId) {
+            try {
+                // Find item in local state
+                let item = null;
+                for (const category of currentChecklist.categories) {
+                    item = category.items.find(i => i.id === itemId);
+                    if (item) break;
+                }
+
+                if (!item) return;
+
+                const newChecked = !item.checked;
+
+                // Update in Supabase
+                const { error } = await supabase
+                    .from('items')
+                    .update({ checked: newChecked })
+                    .eq('id', itemId);
+
+                if (error) throw error;
+
+                // Update local state
+                item.checked = newChecked;
+                renderChecklist();
+            } catch (error) {
+                console.error('Error toggling item:', error);
+            }
+        }
+
+        // Add custom item
+        async function addItem(event, categoryName) {
+            event.preventDefault();
+            const input = event.target.querySelector('input');
+            const name = input.value.trim();
+
+            if (!name) return;
+
+            try {
+                const { data: newItem, error } = await supabase
+                    .from('items')
+                    .insert({
+                        checklist_id: currentChecklist.id,
+                        category: categoryName,
+                        name: name,
+                        checked: false
+                    })
+                    .select()
+                    .single();
+
+                if (error) throw error;
+
+                // Add to local state
+                const category = currentChecklist.categories.find(c => c.name === categoryName);
+                if (category) {
+                    category.items.push({
+                        id: newItem.id,
+                        name: newItem.name,
+                        checked: newItem.checked
+                    });
+                }
+
+                input.value = '';
+                renderChecklist();
+            } catch (error) {
+                console.error('Error adding item:', error);
+            }
+        }
+
+        // Delete item
+        async function deleteItem(itemId) {
+            try {
+                const { error } = await supabase
+                    .from('items')
+                    .delete()
+                    .eq('id', itemId);
+
+                if (error) throw error;
+
+                // Remove from local state
+                for (const category of currentChecklist.categories) {
+                    const index = category.items.findIndex(i => i.id === itemId);
+                    if (index !== -1) {
+                        category.items.splice(index, 1);
+                        break;
+                    }
+                }
+
+                renderChecklist();
+            } catch (error) {
+                console.error('Error deleting item:', error);
+            }
+        }
+
+        // Create new checklist for today
+        async function createNewChecklist() {
+            if (!confirm('This will reset today\'s checklist. Continue?')) return;
+
+            const today = getTodayDate();
+
+            try {
+                // Delete existing checklist for today if exists
+                const { data: existing } = await supabase
+                    .from('checklists')
+                    .select('id')
+                    .eq('date', today)
+                    .single();
+
+                if (existing) {
+                    // Delete items first (cascade should handle this, but just in case)
+                    await supabase.from('items').delete().eq('checklist_id', existing.id);
+                    await supabase.from('checklists').delete().eq('id', existing.id);
+                }
+
+                // Create new checklist
+                await createChecklistForDate(today);
+                await loadChecklist();
+            } catch (error) {
+                console.error('Error creating new checklist:', error);
+            }
+        }
+
+        // Show history modal
+        async function showHistory() {
+            const modal = document.getElementById('historyModal');
+            const historyList = document.getElementById('historyList');
+
+            try {
+                const { data: checklists, error } = await supabase
+                    .from('checklists')
+                    .select('id, date')
+                    .order('date', { ascending: false });
+
+                if (error) throw error;
+
+                if (checklists.length === 0) {
+                    historyList.innerHTML = '<div class="empty-state">No history yet.</div>';
+                } else {
+                    // Get item counts for each checklist
+                    const historyHtml = await Promise.all(checklists.map(async (checklist) => {
+                        const { data: items } = await supabase
+                            .from('items')
+                            .select('checked')
+                            .eq('checklist_id', checklist.id);
+
+                        const totalItems = items ? items.length : 0;
+                        const checkedItems = items ? items.filter(i => i.checked).length : 0;
+                        const progress = totalItems > 0 ? Math.round((checkedItems / totalItems) * 100) : 0;
+
+                        return `
+                            <div class="history-item" onclick="loadHistoricalChecklist('${checklist.date}')">
+                                <div>
+                                    <div class="history-date">${formatDate(checklist.date)}</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: ${progress}%"></div>
+                                    </div>
+                                </div>
+                                <div class="history-progress">${checkedItems}/${totalItems} items</div>
+                            </div>
+                        `;
+                    }));
+
+                    historyList.innerHTML = historyHtml.join('');
+                }
+
+                modal.classList.add('active');
+            } catch (error) {
+                console.error('Error loading history:', error);
+            }
+        }
+
+        // Close history modal
+        function closeHistory() {
+            document.getElementById('historyModal').classList.remove('active');
+        }
+
+        // Load a historical checklist
+        async function loadHistoricalChecklist(date) {
+            try {
+                const { data: checklist, error } = await supabase
+                    .from('checklists')
+                    .select('id, date')
+                    .eq('date', date)
+                    .single();
+
+                if (error) throw error;
+
+                const { data: items, error: itemsError } = await supabase
+                    .from('items')
+                    .select('*')
+                    .eq('checklist_id', checklist.id)
+                    .order('id');
+
+                if (itemsError) throw itemsError;
+
+                // Group items by category
+                const categories = [];
+                const categoryMap = {};
+
+                for (const item of items) {
+                    if (!categoryMap[item.category]) {
+                        categoryMap[item.category] = [];
+                        categories.push({ name: item.category, items: categoryMap[item.category] });
+                    }
+                    categoryMap[item.category].push({
+                        id: item.id,
+                        name: item.name,
+                        checked: item.checked
+                    });
+                }
+
+                currentChecklist = {
+                    id: checklist.id,
+                    date: checklist.date,
+                    categories: categories
+                };
+
+                renderChecklist();
+                closeHistory();
+            } catch (error) {
+                console.error('Error loading historical checklist:', error);
+            }
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('historyModal').addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal')) {
+                closeHistory();
+            }
+        });
+
+        // Register service worker for PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log('Service Worker registered'))
+                .catch(err => console.log('Service Worker registration failed:', err));
+        }
+
+        // Initial load
+        loadChecklist();
+    </script>
+</body>
+</html>
